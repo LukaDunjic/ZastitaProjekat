@@ -92,25 +92,54 @@ class KeyGenerationApp:
         # Prikaz privatnih i javnih ključeva u odvojenim tabelama
         self.private_key_list.insert(tk.END, f"Private KeyID: {key_info['KeyID']}, Name: {key_info['Name']}, Email: {key_info['Email']}, Size: {key_info['Size']}")
         self.public_key_list.insert(tk.END, f"Public KeyID: {key_info['KeyID']}, Name: {key_info['Name']}, Email: {key_info['Email']}, Size: {key_info['Size']}")
-        self.load_keys(self)
+        self.load_keys()
 
     def load_keys(self):
-        # Učitaj privatne ključeve
+        # Onemogući ponovno klikanje dugmeta
         if self.show_keys_clicked:
             return
 
-        self.private_key_ring.load_private_keys_from_files()
-        for key in self.private_key_ring.keys:
-            self.private_key_list.insert(tk.END, f"KeyID: {key['KeyID']}, Name: {key['Name']}, Email: {key['UserID']}")
+        # Očisti postojeći prikaz u tabelama
+        self.private_key_list.delete(0, tk.END)
+        self.public_key_list.delete(0, tk.END)
 
-        # Učitaj javne ključeve
+        # Učitaj privatne ključeve iz fajlova i dodaj ih u tabelu
+        self.private_key_ring.load_private_keys_from_files(self.entry_password.get())
+        for key in self.private_key_ring.keys:
+            self.private_key_list.insert(
+                tk.END,
+                f"KeyID: {key['KeyID']}, Name: {key['Name']}, Email: {key['UserID']}, Timestamp: {key['Timestamp']}"
+            )
+
+        # Učitaj javne ključeve iz fajlova i dodaj ih u tabelu
         self.public_key_ring.load_public_keys_from_files()
         for key in self.public_key_ring.keys:
-            self.public_key_list.insert(tk.END, f"KeyID: {key['KeyID']}, Name: {key['Name']}, Email: {key['UserID']}")
+            self.public_key_list.insert(
+                tk.END,
+                f"KeyID: {key['KeyID']}, Name: {key['Name']}, Email: {key['UserID']}, Timestamp: {key['Timestamp']}"
+            )
 
         # Onemogući ponovno klikanje dugmeta
         self.button_load_keys.config(state=tk.DISABLED)
         self.show_keys_clicked = True
+
+    # def load_keys(self):
+    #     # Učitaj privatne ključeve
+    #     if self.show_keys_clicked:
+    #         return
+    #
+    #     self.private_key_ring.load_private_keys_from_files()
+    #     for key in self.private_key_ring.keys:
+    #         self.private_key_list.insert(tk.END, f"KeyID: {key['KeyID']}, Name: {key['Name']}, Email: {key['UserID']}")
+    #
+    #     # Učitaj javne ključeve
+    #     self.public_key_ring.load_public_keys_from_files()
+    #     for key in self.public_key_ring.keys:
+    #         self.public_key_list.insert(tk.END, f"KeyID: {key['KeyID']}, Name: {key['Name']}, Email: {key['UserID']}")
+    #
+    #     # Onemogući ponovno klikanje dugmeta
+    #     self.button_load_keys.config(state=tk.DISABLED)
+    #     self.show_keys_clicked = True
 
 
 
