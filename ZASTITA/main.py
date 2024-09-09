@@ -87,11 +87,13 @@ class KeyGenerationApp:
         key_info = self.private_key_ring.generate_key(key_size, name, email, password)
 
         # Spremanje javnog ključa u fajl
-        self.public_key_ring.save_public_key_to_file(key_info['PublicKey'], f'public_{key_info["KeyID"]}.pem')
+        self.public_key_ring.save_public_key_to_file(key_info['Public key'], f'public_{key_info["KeyID"]}.pem')
 
         # Prikaz privatnih i javnih ključeva u odvojenim tabelama
-        self.private_key_list.insert(tk.END, f"Private KeyID: {key_info['KeyID']}, Name: {key_info['Name']}, Email: {key_info['Email']}, Size: {key_info['Size']}")
-        self.public_key_list.insert(tk.END, f"Public KeyID: {key_info['KeyID']}, Name: {key_info['Name']}, Email: {key_info['Email']}, Size: {key_info['Size']}")
+        self.private_key_list.insert(tk.END, f"Private KeyID: {key_info['KeyID']}, Name: {key_info['Name']}, Email: {key_info['Email']}, "
+                                             f"EncryptedPrivateKey: {key_info['Encrypted private key']}, Timestamp: {key_info['Timestamp']}")
+        self.public_key_list.insert(tk.END, f"Public KeyID: {key_info['KeyID']}, Name: {key_info['Name']}, Email: {key_info['Email']}, "
+                                           f"Public key: {key_info['Public key']}, Timestamp: {key_info['Timestamp']}")
         self.load_keys()
 
     def load_keys(self):
@@ -102,15 +104,13 @@ class KeyGenerationApp:
         # Očisti postojeći prikaz u tabelama
         self.private_key_list.delete(0, tk.END)
         self.public_key_list.delete(0, tk.END)
-        print(self.entry_password.get())
 
         # Učitaj privatne ključeve iz fajlova i dodaj ih u tabelu
         self.private_key_ring.load_private_keys_from_files(self.entry_password.get())
-        print(self.entry_password.get())
         for key in self.private_key_ring.keys:
             self.private_key_list.insert(
                 tk.END,
-                f"KeyID: {key['KeyID']}, Name: {key['Name']}, Email: {key['UserID']}, EncryptedPrivateKey: {key['Encrypted private key']}, Timestamp: {key['Timestamp']}"
+                f"Private KeyID: {key['KeyID']}, Name: {key['Name']}, Email: {key['Email']}, EncryptedPrivateKey: {key['Encrypted private key']}, Timestamp: {key['Timestamp']}"
             )
 
         # Učitaj javne ključeve iz fajlova i dodaj ih u tabelu
@@ -118,7 +118,7 @@ class KeyGenerationApp:
         for key in self.public_key_ring.keys:
             self.public_key_list.insert(
                 tk.END,
-                f"KeyID: {key['KeyID']}, Name: {key['Name']}, Email: {key['UserID']}, Public key: {key['Public key']}, Timestamp: {key['Timestamp']}"
+                f"Public KeyID: {key['KeyID']}, Name: {key['Name']}, Email: {key['Email']}, Public key: {key['Public key']}, Timestamp: {key['Timestamp']}"
             )
 
         # Onemogući ponovno klikanje dugmeta
@@ -132,12 +132,12 @@ class KeyGenerationApp:
     #
     #     self.private_key_ring.load_private_keys_from_files()
     #     for key in self.private_key_ring.keys:
-    #         self.private_key_list.insert(tk.END, f"KeyID: {key['KeyID']}, Name: {key['Name']}, Email: {key['UserID']}")
+    #         self.private_key_list.insert(tk.END, f"KeyID: {key['KeyID']}, Name: {key['Name']}, Email: {key['Email']}")
     #
     #     # Učitaj javne ključeve
     #     self.public_key_ring.load_public_keys_from_files()
     #     for key in self.public_key_ring.keys:
-    #         self.public_key_list.insert(tk.END, f"KeyID: {key['KeyID']}, Name: {key['Name']}, Email: {key['UserID']}")
+    #         self.public_key_list.insert(tk.END, f"KeyID: {key['KeyID']}, Name: {key['Name']}, Email: {key['Email']}")
     #
     #     # Onemogući ponovno klikanje dugmeta
     #     self.button_load_keys.config(state=tk.DISABLED)

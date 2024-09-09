@@ -45,7 +45,9 @@ class PrivateKeyRing:
             "Size": key_size,
             "Name": name,
             "Email": email,
-            "PublicKey": public_key
+            "Public key": public_key,
+            "Encrypted private key": encrypted_private_key,
+            "Timestamp": timestamp
         }
 
     def add_key(self, key_id, public_key, encrypted_private_key, name, email, timestamp):
@@ -55,7 +57,7 @@ class PrivateKeyRing:
             "Public key": public_key,
             "Encrypted private key": encrypted_private_key,
             "Name": name,
-            "UserID": email
+            "Email": email
         }
         self.keys.append(key)
 
@@ -147,7 +149,7 @@ class PrivateKeyRing:
                 "Timestamp": key["Timestamp"],
                 "KeyID": key["KeyID"],
                 "Name": key["Name"],
-                "Email": key["UserID"],  # Email je u UserID polju
+                "Email": key["Email"],
                 "PublicKey": base64.b64encode(key["Public key"].public_bytes(
                     encoding=serialization.Encoding.PEM,
                     format=serialization.PublicFormat.SubjectPublicKeyInfo
@@ -168,7 +170,7 @@ class PrivateKeyRing:
     #             "Timestamp": key["Timestamp"],
     #             "KeyID": key["KeyID"],
     #             "Name": key["Name"],
-    #             "Email": key["UserID"],
+    #             "Email": key["Email"],
     #             "PublicKey": base64.b64encode(key["Public key"].public_bytes(
     #                 encoding=serialization.Encoding.PEM,
     #                 format=serialization.PublicFormat.SubjectPublicKeyInfo

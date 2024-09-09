@@ -1,5 +1,6 @@
 import base64
 import datetime
+import json
 import os
 
 from cryptography.hazmat.backends import default_backend
@@ -12,24 +13,23 @@ class PublicKeyRing:
             keys = []
         self.keys = keys
 
-    def add_key(self, key_id, public_key, name, email):
-        timestamp = datetime.datetime.now().timestamp()
+    def add_key(self, key_id, public_key, name, email, timestamp):
         key = {
             "Timestamp": timestamp,
             "KeyID": key_id,
             "Public key": public_key,
             "Name": name,
-            "UserID": email
+            "Email": email
         }
         self.keys.append(key)
 
-    def load_public_key(self, filename):
-        with open(filename, 'rb') as key_file:
-            public_key = serialization.load_pem_public_key(
-                key_file.read(),
-                backend=default_backend()
-            )
-        return public_key
+    # def load_public_key(self, filename):
+    #     with open(filename, 'rb') as key_file:
+    #         public_key = serialization.load_pem_public_key(
+    #             key_file.read(),
+    #             backend=default_backend()
+    #         )
+    #     return public_key
 
     def save_public_key_to_file(self, public_key, filename):
         with open(filename, 'wb') as key_file:
@@ -39,17 +39,54 @@ class PublicKeyRing:
             )
             key_file.write(pem)
 
+    def load_public_key_from_pem(self, filename):
+        with open(filename, 'rb') as key_file:
+            public_key = serialization.load_pem_public_key(
+                key_file.read(),
+                backend=default_backend()
+            )
+            key_id = base64.b64encode(public_key.public_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo
+            )[:-8]).decode('utf-8')
+
+        return public_key
+
+    # def save_keys_to_file(self):
+    #     for key in self.keys:
+    #         # Kreiraj JSON strukturu sa svim relevantnim podacima
+    #         key_data = {
+    #             "Timestamp": key["Timestamp"],
+    #             "KeyID": key["KeyID"],
+    #             "Name": key["Name"],
+    #             "Email": key["Email"],
+    #             "PublicKey": base64.b64encode(key["Public key"].public_bytes(
+    #                 encoding=serialization.Encoding.PEM,
+    #                 format=serialization.PublicFormat.SubjectPublicKeyInfo
+    #             )).decode('utf-8'),
+    #             "EncryptedPrivateKey": key["Encrypted private key"]  # Enkriptovani privatni ključ
+    #         }
+    #
+    #         # Sačuvaj sve podatke u jednom JSON fajlu
+    #         json_filename = f"key_{key['KeyID']}_info.json"
+    #         with open(json_filename, 'w') as json_file:
+    #             json.dump(key_data, json_file, indent=4)
+
     def load_public_keys_from_files(self):
-        # Učitaj sve javne ključeve iz fajlova
-        public_key_files = [f for f in os.listdir() if f.startswith("public_") and f.endswith(".pem")]
-        for filename in public_key_files:
-            with open(filename, 'rb') as key_file:
-                public_key = serialization.load_pem_public_key(
-                    key_file.read(),
-                    backend=default_backend()
-                )
-                key_id = base64.b64encode(public_key.public_bytes(
-                    encoding=serialization.Encoding.PEM,
-                    format=serialization.PublicFormat.SubjectPublicKeyInfo
-                )[:10]).decode('utf-8')
-                self.add_key(key_id, public_key, "Unknown", "Unknown")
+        # Učitaj sve JSON fajlove koji sadrže privatne ključeve i metapodatke
+        key_files = [f for f in os.listdir() if f.endswith(".json")]
+
+        for filename in key_files:
+            # Pročitaj podatke iz JSON fajla
+            with open(filename, 'r') as file:
+                key_data = json.load(file)
+
+            # Učitaj public key i ostale podatke
+            public_key = self.load_public_key_from_pem(f"public_{key_data['KeyID']}.pem")
+            key_id = key_data["KeyID"]
+            name = key_data.get("Name", "Unknown")
+            email = key_data.get("Email", "Unknown")
+            timestamp = key_data.get("Timestamp", datetime.datetime.now().timestamp())
+
+            # Dodaj ključ sa stvarnim podacima
+            self.add_key(key_id, public_key, name, email, timestamp)
