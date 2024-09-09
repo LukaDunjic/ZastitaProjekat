@@ -3,9 +3,12 @@ from tkinter import messagebox
 from cryptography.hazmat.primitives.asymmetric import rsa
 import datetime
 
+from MessageProt import MessageProcessor
 from PrivateKeyRings import PrivateKeyRing
 from PublicKeyRings import PublicKeyRing
 
+
+message_processor = MessageProcessor()
 
 class KeyGenerationApp:
     def __init__(self, root):
@@ -125,27 +128,51 @@ class KeyGenerationApp:
         self.button_load_keys.config(state=tk.DISABLED)
         self.show_keys_clicked = True
 
-    # def load_keys(self):
-    #     # Učitaj privatne ključeve
-    #     if self.show_keys_clicked:
-    #         return
-    #
-    #     self.private_key_ring.load_private_keys_from_files()
-    #     for key in self.private_key_ring.keys:
-    #         self.private_key_list.insert(tk.END, f"KeyID: {key['KeyID']}, Name: {key['Name']}, Email: {key['Email']}")
-    #
-    #     # Učitaj javne ključeve
-    #     self.public_key_ring.load_public_keys_from_files()
-    #     for key in self.public_key_ring.keys:
-    #         self.public_key_list.insert(tk.END, f"KeyID: {key['KeyID']}, Name: {key['Name']}, Email: {key['Email']}")
-    #
-    #     # Onemogući ponovno klikanje dugmeta
-    #     self.button_load_keys.config(state=tk.DISABLED)
-    #     self.show_keys_clicked = True
+def send_message_screen():
+    message_window = tk.Toplevel()
+    message_window.title("Send Message")
+
+    label_message = tk.Label(message_window, text="Enter Message:")
+    label_message.grid(row=0, column=0, padx=10, pady=5)
+
+    entry_message = tk.Text(message_window, height=10, width=50)
+    entry_message.grid(row=1, column=0, padx=10, pady=5)
+
+    label_algorithm = tk.Label(message_window, text="Encryption Algorithm:")
+    label_algorithm.grid(row=2, column=0, padx=10, pady=5)
+
+    algorithm_choice = tk.StringVar()
+    algorithm_menu = tk.OptionMenu(message_window, algorithm_choice, "AES128", "TripleDES")
+    algorithm_menu.grid(row=3, column=0, padx=10, pady=5)
+
+    send_button = tk.Button(message_window, text="Send Message", command=lambda: process_message(entry_message.get("1.0", tk.END), algorithm_choice.get()))
+    send_button.grid(row=4, column=0, padx=10, pady=5)
+def process_message(message, algorithm):
+    # Placeholder za procesiranje poruke
+    messagebox.showinfo("Message Sent", f"Message encrypted with {algorithm}")
+
+# Funkcija za početni ekran sa dva dugmeta
+def main_screen():
+    root = tk.Tk()
+    root.title("PGP Main Screen")
+
+    key_button = tk.Button(root, text="Generisanje/Prikaz Ključeva", command=lambda: open_key_management(root))
+    key_button.grid(row=0, column=0, padx=20, pady=20)
+
+    message_button = tk.Button(root, text="Slanje Poruke", command=send_message_screen)
+    message_button.grid(row=1, column=0, padx=20, pady=20)
+
+    root.mainloop()
+
+# Funkcija za otvaranje prozora za generisanje/prikaz ključeva
+def open_key_management(parent_root):
+    key_window = tk.Toplevel(parent_root)
+    key_app = KeyGenerationApp(key_window)
 
 
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = KeyGenerationApp(root)
-    root.mainloop()
+    main_screen()
+    # root = tk.Tk()
+    # app = KeyGenerationApp(root)
+    # root.mainloop()
