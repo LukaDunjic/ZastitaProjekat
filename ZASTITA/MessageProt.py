@@ -19,11 +19,11 @@ class MessageProcessor:
 
         # Simetrični ključ - u zavisnosti od algoritma
         if algorithm == 'AES128':
-            sym_key = os.urandom(16)  # 128-bitni ključ za AES
-            cipher = Cipher(algorithms.AES(sym_key), modes.CFB(os.urandom(16)), backend=default_backend())
+            session_key = os.urandom(16)  # 128-bitni ključ za AES
+            cipher = Cipher(algorithms.AES(session_key), modes.CFB(os.urandom(16)), backend=default_backend())
         elif algorithm == 'TripleDES':
-            sym_key = os.urandom(24)  # 192-bitni ključ za TripleDES
-            cipher = Cipher(algorithms.TripleDES(sym_key), modes.CFB(os.urandom(8)), backend=default_backend())
+            session_key = os.urandom(24)  # 192-bitni ključ za TripleDES
+            cipher = Cipher(algorithms.TripleDES(session_key), modes.CFB(os.urandom(8)), backend=default_backend())
         # Dodaj opcije za Cast5 i IDEA
 
         # Šifrovanje poruke simetričnim ključem
@@ -31,8 +31,8 @@ class MessageProcessor:
         encrypted_message = encryptor.update(message.encode()) + encryptor.finalize()
 
         # Šifrovanje simetričnog ključa pomoću javnog ključa
-        encrypted_key = public_key.encrypt(
-            sym_key,
+        encrypted_session_key = public_key.encrypt(
+            session_key,
             padding.OAEP(
                 mgf=padding.MGF1(algorithm=hashes.SHA1()),
                 algorithm=hashes.SHA1(),
@@ -40,7 +40,7 @@ class MessageProcessor:
             )
         )
 
-        return encrypted_message, encrypted_key
+        return encrypted_message, encrypted_session_key
 
     def sign_message(self, message, private_key):
         """Digitalno potpisivanje poruke koristeći privatni ključ i SHA-1"""

@@ -93,22 +93,23 @@ class KeyGenerationApp:
         self.public_key_ring.save_public_key_to_file(key_info['Public key'], f'public_{key_info["KeyID"]}.pem')
 
         # Prikaz privatnih i javnih ključeva u odvojenim tabelama
-        self.private_key_list.insert(tk.END, f"Private KeyID: {key_info['KeyID']}, Name: {key_info['Name']}, Email: {key_info['Email']}, "
-                                             f"EncryptedPrivateKey: {key_info['Encrypted private key']}, Timestamp: {key_info['Timestamp']}")
-        self.public_key_list.insert(tk.END, f"Public KeyID: {key_info['KeyID']}, Name: {key_info['Name']}, Email: {key_info['Email']}, "
-                                           f"Public key: {key_info['Public key']}, Timestamp: {key_info['Timestamp']}")
+        # self.private_key_list.insert(tk.END, f"Private KeyID: {key_info['KeyID']}, Name: {key_info['Name']}, Email: {key_info['Email']}, "
+        #                                      f"EncryptedPrivateKey: {key_info['Encrypted private key']}, Timestamp: {key_info['Timestamp']}")
+        # self.public_key_list.insert(tk.END, f"Public KeyID: {key_info['KeyID']}, Name: {key_info['Name']}, Email: {key_info['Email']}, "
+        #                                    f"Public key: {key_info['Public key']}, Timestamp: {key_info['Timestamp']}")
         self.load_keys()
 
     def load_keys(self):
         # Onemogući ponovno klikanje dugmeta
-        if self.show_keys_clicked:
-            return
+        # if self.show_keys_clicked:
+        #     return
 
         # Očisti postojeći prikaz u tabelama
         self.private_key_list.delete(0, tk.END)
         self.public_key_list.delete(0, tk.END)
 
         # Učitaj privatne ključeve iz fajlova i dodaj ih u tabelu
+        print(self.entry_name.get())
         self.private_key_ring.load_private_keys_from_files(self.entry_name.get(), self.entry_password.get())
         for key in self.private_key_ring.keys:
             self.private_key_list.insert(
@@ -125,8 +126,8 @@ class KeyGenerationApp:
             )
 
         # Onemogući ponovno klikanje dugmeta
-        self.button_load_keys.config(state=tk.DISABLED)
-        self.show_keys_clicked = True
+        # self.button_load_keys.config(state=tk.DISABLED)
+        # self.show_keys_clicked = True
 
 def send_message_screen():
     message_window = tk.Toplevel()
@@ -147,6 +148,7 @@ def send_message_screen():
 
     send_button = tk.Button(message_window, text="Send Message", command=lambda: process_message(entry_message.get("1.0", tk.END), algorithm_choice.get()))
     send_button.grid(row=4, column=0, padx=10, pady=5)
+
 def process_message(message, algorithm):
     # Placeholder za procesiranje poruke
     messagebox.showinfo("Message Sent", f"Message encrypted with {algorithm}")

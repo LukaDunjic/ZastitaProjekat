@@ -45,6 +45,7 @@ class PublicKeyRing:
         return public_key
 
     def load_public_keys_from_files(self):
+        self.keys.clear()
         # Učitaj sve JSON fajlove koji sadrže privatne ključeve i metapodatke
         key_files = [f for f in os.listdir() if f.endswith(".json")]
 
