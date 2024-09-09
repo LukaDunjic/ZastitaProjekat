@@ -102,13 +102,15 @@ class KeyGenerationApp:
         # Očisti postojeći prikaz u tabelama
         self.private_key_list.delete(0, tk.END)
         self.public_key_list.delete(0, tk.END)
+        print(self.entry_password.get())
 
         # Učitaj privatne ključeve iz fajlova i dodaj ih u tabelu
         self.private_key_ring.load_private_keys_from_files(self.entry_password.get())
+        print(self.entry_password.get())
         for key in self.private_key_ring.keys:
             self.private_key_list.insert(
                 tk.END,
-                f"KeyID: {key['KeyID']}, Name: {key['Name']}, Email: {key['UserID']}, Timestamp: {key['Timestamp']}"
+                f"KeyID: {key['KeyID']}, Name: {key['Name']}, Email: {key['UserID']}, EncryptedPrivateKey: {key['Encrypted private key']}, Timestamp: {key['Timestamp']}"
             )
 
         # Učitaj javne ključeve iz fajlova i dodaj ih u tabelu
@@ -116,7 +118,7 @@ class KeyGenerationApp:
         for key in self.public_key_ring.keys:
             self.public_key_list.insert(
                 tk.END,
-                f"KeyID: {key['KeyID']}, Name: {key['Name']}, Email: {key['UserID']}, Timestamp: {key['Timestamp']}"
+                f"KeyID: {key['KeyID']}, Name: {key['Name']}, Email: {key['UserID']}, Public key: {key['Public key']}, Timestamp: {key['Timestamp']}"
             )
 
         # Onemogući ponovno klikanje dugmeta

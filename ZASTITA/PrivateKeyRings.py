@@ -111,11 +111,7 @@ class PrivateKeyRing:
 
             # Dekodiraj privatni ključ iz base64 stringa
             private_key_bytes = base64.b64decode(key_data["EncryptedPrivateKey"])
-            private_key = serialization.load_pem_private_key(
-                private_key_bytes,
-                password=password.encode(),  # Ako je privatni ključ šifrovan, ovde možeš tražiti lozinku
-                backend=default_backend()
-            )
+            private_key = self.load_private_key_from_file(filename=f"{key_data['KeyID']}_private.pem", password=password)
 
             # Učitaj public key i ostale podatke
             public_key_bytes = base64.b64decode(key_data["PublicKey"])
@@ -160,7 +156,7 @@ class PrivateKeyRing:
             }
 
             # Sačuvaj sve podatke u jednom JSON fajlu
-            json_filename = f"key_{key['KeyID']}.json"
+            json_filename = f"key_{key['KeyID']}_info.json"
             with open(json_filename, 'w') as json_file:
                 json.dump(key_data, json_file, indent=4)
 
