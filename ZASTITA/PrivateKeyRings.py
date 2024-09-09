@@ -35,7 +35,7 @@ class PrivateKeyRing:
         self.add_key(key_id, public_key, encrypted_private_key, name, email, timestamp)
 
         # Spremanje ključa u fajl
-        self.save_private_key_to_file(private_key, f'{key_id}_private.pem', password)
+        self.save_private_key_to_file(private_key, f'{name}_{key_id}_private.pem', password)
 
         # generisanje json fajla
         self.save_keys_to_file()
@@ -102,7 +102,8 @@ class PrivateKeyRing:
             )
         return private_key
 
-    def load_private_keys_from_files(self, password):
+    def load_private_keys_from_files(self, name, password):
+        print(name)
         # Učitaj sve JSON fajlove koji sadrže privatne ključeve i metapodatke
         key_files = [f for f in os.listdir() if f.endswith(".json")]
 
@@ -110,22 +111,22 @@ class PrivateKeyRing:
             # Pročitaj podatke iz JSON fajla
             with open(filename, 'r') as file:
                 key_data = json.load(file)
+            if(filename.startswith(f"{name}_")):
+                # Dekodiraj privatni ključ iz base64 stringa
+                private_key_bytes = base64.b64decode(key_data["EncryptedPrivateKey"])
+                private_key = self.load_private_key_from_file(filename=f"{name}_{key_data['KeyID']}_private.pem", password=password)
 
-            # Dekodiraj privatni ključ iz base64 stringa
-            private_key_bytes = base64.b64decode(key_data["EncryptedPrivateKey"])
-            private_key = self.load_private_key_from_file(filename=f"{key_data['KeyID']}_private.pem", password=password)
+                # Učitaj public key i ostale podatke
+                public_key_bytes = base64.b64decode(key_data["PublicKey"])
+                public_key = serialization.load_pem_public_key(public_key_bytes, backend=default_backend())
+                key_id = key_data["KeyID"]
+                name = key_data.get("Name", "Unknown")
+                email = key_data.get("Email", "Unknown")
+                encrypted_private_key = key_data.get("EncryptedPrivateKey", "Unknown")
+                timestamp = key_data.get("Timestamp", datetime.datetime.now().timestamp())
 
-            # Učitaj public key i ostale podatke
-            public_key_bytes = base64.b64decode(key_data["PublicKey"])
-            public_key = serialization.load_pem_public_key(public_key_bytes, backend=default_backend())
-            key_id = key_data["KeyID"]
-            name = key_data.get("Name", "Unknown")
-            email = key_data.get("Email", "Unknown")
-            encrypted_private_key = key_data.get("EncryptedPrivateKey", "Unknown")
-            timestamp = key_data.get("Timestamp", datetime.datetime.now().timestamp())
-
-            # Dodaj ključ sa stvarnim podacima
-            self.add_key(key_id, public_key, encrypted_private_key, name, email, timestamp=timestamp)
+                # Dodaj ključ sa stvarnim podacima
+                self.add_key(key_id, public_key, encrypted_private_key, name, email, timestamp=timestamp)
 
     # def load_private_keys_from_files(self):
     #     # Učitaj sve privatne ključeve iz fajlova
@@ -158,7 +159,7 @@ class PrivateKeyRing:
             }
 
             # Sačuvaj sve podatke u jednom JSON fajlu
-            json_filename = f"key_{key['KeyID']}_info.json"
+            json_filename = f"{key['Name']}_key_{key['KeyID']}_info.json"
             with open(json_filename, 'w') as json_file:
                 json.dump(key_data, json_file, indent=4)
 

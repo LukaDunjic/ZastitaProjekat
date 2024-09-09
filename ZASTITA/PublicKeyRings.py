@@ -23,14 +23,6 @@ class PublicKeyRing:
         }
         self.keys.append(key)
 
-    # def load_public_key(self, filename):
-    #     with open(filename, 'rb') as key_file:
-    #         public_key = serialization.load_pem_public_key(
-    #             key_file.read(),
-    #             backend=default_backend()
-    #         )
-    #     return public_key
-
     def save_public_key_to_file(self, public_key, filename):
         with open(filename, 'wb') as key_file:
             pem = public_key.public_bytes(
@@ -51,26 +43,6 @@ class PublicKeyRing:
             )[:-8]).decode('utf-8')
 
         return public_key
-
-    # def save_keys_to_file(self):
-    #     for key in self.keys:
-    #         # Kreiraj JSON strukturu sa svim relevantnim podacima
-    #         key_data = {
-    #             "Timestamp": key["Timestamp"],
-    #             "KeyID": key["KeyID"],
-    #             "Name": key["Name"],
-    #             "Email": key["Email"],
-    #             "PublicKey": base64.b64encode(key["Public key"].public_bytes(
-    #                 encoding=serialization.Encoding.PEM,
-    #                 format=serialization.PublicFormat.SubjectPublicKeyInfo
-    #             )).decode('utf-8'),
-    #             "EncryptedPrivateKey": key["Encrypted private key"]  # Enkriptovani privatni ključ
-    #         }
-    #
-    #         # Sačuvaj sve podatke u jednom JSON fajlu
-    #         json_filename = f"key_{key['KeyID']}_info.json"
-    #         with open(json_filename, 'w') as json_file:
-    #             json.dump(key_data, json_file, indent=4)
 
     def load_public_keys_from_files(self):
         # Učitaj sve JSON fajlove koji sadrže privatne ključeve i metapodatke

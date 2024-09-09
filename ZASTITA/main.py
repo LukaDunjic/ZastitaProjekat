@@ -106,7 +106,7 @@ class KeyGenerationApp:
         self.public_key_list.delete(0, tk.END)
 
         # Učitaj privatne ključeve iz fajlova i dodaj ih u tabelu
-        self.private_key_ring.load_private_keys_from_files(self.entry_password.get())
+        self.private_key_ring.load_private_keys_from_files(self.entry_name.get(), self.entry_password.get())
         for key in self.private_key_ring.keys:
             self.private_key_list.insert(
                 tk.END,
