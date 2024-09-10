@@ -1,3 +1,6 @@
+import ast
+import json
+import re
 import tkinter as tk
 from tkinter import messagebox
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -7,8 +10,10 @@ from MessageProt import MessageProcessor
 from PrivateKeyRings import PrivateKeyRing
 from PublicKeyRings import PublicKeyRing
 
-
 message_processor = MessageProcessor()
+private_key_ring = PrivateKeyRing()
+public_key_ring = PublicKeyRing()
+
 
 class KeyGenerationApp:
     def __init__(self, root):
@@ -75,6 +80,7 @@ class KeyGenerationApp:
 
         # Disable "Show Keys" after one click
         self.show_keys_clicked = False
+
     def generate_key(self):
         name = self.entry_name.get()
         email = self.entry_email.get()
@@ -129,6 +135,7 @@ class KeyGenerationApp:
         # self.button_load_keys.config(state=tk.DISABLED)
         # self.show_keys_clicked = True
 
+
 def send_message_screen():
     message_window = tk.Toplevel()
     message_window.title("Send Message")
@@ -146,12 +153,143 @@ def send_message_screen():
     algorithm_menu = tk.OptionMenu(message_window, algorithm_choice, "AES128", "TripleDES")
     algorithm_menu.grid(row=3, column=0, padx=10, pady=5)
 
-    send_button = tk.Button(message_window, text="Send Message", command=lambda: process_message(entry_message.get("1.0", tk.END), algorithm_choice.get()))
-    send_button.grid(row=4, column=0, padx=10, pady=5)
+    message_window = tk.Tk()
+    message_window.title("Key Selection")
 
-def process_message(message, algorithm):
-    # Placeholder za procesiranje poruke
-    messagebox.showinfo("Message Sent", f"Message encrypted with {algorithm}")
+
+    # Polje za unos name-a
+    label_name = tk.Label(message_window, text="Name:")
+    label_name.grid(row=0, column=0, padx=10, pady=5)
+
+    entry_name = tk.Entry(message_window)
+    entry_name.grid(row=0, column=1, padx=10, pady=5)
+
+    # Polje za unos password-a
+    label_password = tk.Label(message_window, text="Password:")
+    label_password.grid(row=1, column=0, padx=10, pady=5)
+
+    entry_password = tk.Entry(message_window, show="*")
+    entry_password.grid(row=1, column=1, padx=10, pady=5)
+
+    def load_keys():
+        name = entry_name.get()
+        password = entry_password.get()
+
+        # Dobavljanje privatnih i javnih ključeva na osnovu unetih podataka
+        private_keys = get_private_keys(name, password)
+        public_keys = get_public_keys()
+
+        # Ažuriranje padajućih listi stvarnim ključevima
+        private_key_menu["menu"].delete(0, "end")
+        for key in private_keys:
+            private_key_menu["menu"].add_command(label=key, command=lambda value=key: private_key_choice.set(value))
+
+        public_key_menu["menu"].delete(0, "end")
+        for key in public_keys:
+            public_key_menu["menu"].add_command(label=key, command=lambda value=key: public_key_choice.set(value))
+
+
+    # Dugme za učitavanje ključeva
+    load_button = tk.Button(message_window, text="Load Keys", command=load_keys)
+    load_button.grid(row=2, column=0, columnspan=2, padx=10, pady=10)
+
+    # Dropdown za privatne ključeve
+    label_private_key = tk.Label(message_window, text="Select Private Key:")
+    label_private_key.grid(row=4, column=0, padx=10, pady=5)
+
+    private_key_choice = tk.StringVar()
+    private_key_menu = tk.OptionMenu(message_window, private_key_choice, "")
+    private_key_menu.grid(row=5, column=0, padx=10, pady=5)
+
+    # Dropdown za javne ključeve
+    label_public_key = tk.Label(message_window, text="Select Public Key:")
+    label_public_key.grid(row=6, column=0, padx=10, pady=5)
+
+    public_key_choice = tk.StringVar()
+    public_key_menu = tk.OptionMenu(message_window, public_key_choice, "")
+    public_key_menu.grid(row=7, column=0, padx=10, pady=5)
+
+    send_button = tk.Button(
+        message_window, text="Send Message",
+        command=lambda: process_message(
+            entry_message.get("1.0", tk.END),
+            entry_password.get(),
+            algorithm_choice.get(),
+            private_key_choice.get(),
+            public_key_choice.get()
+        )
+    )
+    send_button.grid(row=8, column=0, padx=10, pady=5)
+
+
+def process_message(message, password, algorithm, private_key_name, public_key_name):
+    keyIdPattern = "'KeyID':\\s*'([^']+)'"
+    namePattern = "'Name':\\s*'([^']+)'"
+
+    # Pronađi podudaranja
+    privateKeyIdMatch = re.search(keyIdPattern, private_key_name)
+    nameMatch = re.search(namePattern, private_key_name)
+    publicKeyIdMatch = re.search(keyIdPattern, public_key_name)
+
+    # Izvuci rezultate
+    private_key_id = privateKeyIdMatch.group(1) if privateKeyIdMatch else ''
+    name = nameMatch.group(1) if nameMatch else ''
+    public_key_id = publicKeyIdMatch.group(1) if publicKeyIdMatch else ''
+
+    # Simulacija preuzimanja ključeva
+    private_key = get_private_key(name=name, key_id=private_key_id, password=password)
+    public_key = get_public_key(key_id=public_key_id)
+
+    processor = MessageProcessor()
+
+    # 1. Digitalno potpisivanje poruke
+    signature = processor.sign_message(message.encode(), private_key)
+
+    # 2. Spajanje poruke i potpisa (u skladu sa šemom)
+    combined_message = message.encode() + signature  # Dodavanje potpisa originalnoj poruci
+
+    # 3. Enkripcija kombinovane poruke pomoću sesijskog ključa
+    encrypted_message, encrypted_key = processor.encrypt_message(combined_message.decode('utf-8'), public_key, algorithm)
+
+    # 4. Kompresija i kodiranje enkriptovane poruke
+    compressed_encoded_message = processor.compress_and_encode(encrypted_message)
+
+    # 5. Čuvanje poruke u fajl (sa enkriptovanim ključem i potpisom)
+    filename = "sent_message.json"
+    processor.save_message_to_file(
+        filename,
+        compressed_encoded_message,
+        encrypted_key,
+        signature,
+        public_key_name
+    )
+
+    # Informacija korisniku
+    messagebox.showinfo("Message Sent", f"Message successfully sent and saved to {filename}")
+
+
+
+# dohvata 1 kljuc na osnovu name-a i key_id-a
+def get_private_key(name, key_id, password):
+    private_key = private_key_ring.load_private_key_from_file(filename=f"{name}_{key_id}_private.pem", password=password)
+    return private_key
+
+
+def get_public_key(key_id):
+    public_key = public_key_ring.load_public_key_from_pem(f"public_{key_id}.pem")
+    return public_key
+
+
+# metode za gui
+def get_private_keys(name, password):
+    private_key_ring.load_private_keys_from_files(name, password)
+    return private_key_ring.keys
+
+
+def get_public_keys():
+    public_key_ring.load_public_keys_from_files()
+    return public_key_ring.keys
+
 
 # Funkcija za početni ekran sa dva dugmeta
 def main_screen():
@@ -166,11 +304,11 @@ def main_screen():
 
     root.mainloop()
 
+
 # Funkcija za otvaranje prozora za generisanje/prikaz ključeva
 def open_key_management(parent_root):
     key_window = tk.Toplevel(parent_root)
     key_app = KeyGenerationApp(key_window)
-
 
 
 if __name__ == "__main__":

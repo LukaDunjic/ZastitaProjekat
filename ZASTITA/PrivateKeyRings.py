@@ -128,21 +128,6 @@ class PrivateKeyRing:
                 # Dodaj ključ sa stvarnim podacima
                 self.add_key(key_id, public_key, encrypted_private_key, name, email, timestamp=timestamp)
 
-    # def load_private_keys_from_files(self):
-    #     # Učitaj sve privatne ključeve iz fajlova
-    #     private_key_files = [f for f in os.listdir() if f.startswith("private_") and f.endswith(".pem")]
-    #     timestamp = datetime.datetime.now().timestamp()
-    #     for filename in private_key_files:
-    #         with open(filename, 'rb') as key_file:
-    #             private_key = serialization.load_pem_private_key(
-    #                 key_file.read(),
-    #                 password=None,  # Lozinka se može tražiti ako je neophodno
-    #                 backend=default_backend()
-    #             )
-    #             public_key = private_key.public_key()
-    #             key_id = self._generate_key_id(public_key)
-    #             # self.add_key(key_id, public_key, "Encrypted", "Unknown", "Unknown", timestamp=timestamp)
-
     def save_keys_to_file(self):
         for key in self.keys:
             # Kreiraj JSON strukturu sa svim relevantnim podacima
@@ -162,27 +147,6 @@ class PrivateKeyRing:
             json_filename = f"{key['Name']}_key_{key['KeyID']}_info.json"
             with open(json_filename, 'w') as json_file:
                 json.dump(key_data, json_file, indent=4)
-
-    # def save_keys_to_file(self, filename):
-    #     # Pripremi podatke za čuvanje
-    #     data = []
-    #     for key in self.keys:
-    #         key_data = {
-    #             "Timestamp": key["Timestamp"],
-    #             "KeyID": key["KeyID"],
-    #             "Name": key["Name"],
-    #             "Email": key["Email"],
-    #             "PublicKey": base64.b64encode(key["Public key"].public_bytes(
-    #                 encoding=serialization.Encoding.PEM,
-    #                 format=serialization.PublicFormat.SubjectPublicKeyInfo
-    #             )).decode('utf-8'),
-    #             "EncryptedPrivateKey": key["Encrypted private key"]
-    #         }
-    #         data.append(key_data)
-    #
-    #     # Sačuvaj podatke u JSON fajl
-    #     with open(filename, 'w') as f:
-    #         json.dump(data, f, indent=4)
 
     def load_keys_from_file(self, filename):
         # Učitaj podatke iz JSON fajla
