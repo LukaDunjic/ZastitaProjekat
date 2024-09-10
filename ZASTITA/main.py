@@ -1,20 +1,26 @@
 import ast
+import base64
 import json
 import os
 import re
 import tkinter as tk
-from tkinter import messagebox
-from cryptography.hazmat.primitives.asymmetric import rsa
+from tkinter import messagebox, filedialog
+
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
 import datetime
+
+from cryptography.hazmat.primitives.ciphers import Cipher, modes, algorithms
 
 from MessageProt import MessageProcessor
 from PrivateKeyRings import PrivateKeyRing
 from PublicKeyRings import PublicKeyRing
 
-message_processor = MessageProcessor()
+
 private_key_ring = PrivateKeyRing()
 public_key_ring = PublicKeyRing()
-
+message_processor = MessageProcessor(private_key_ring, public_key_ring)
 
 class KeyGenerationApp:
     def __init__(self, root):
@@ -99,18 +105,9 @@ class KeyGenerationApp:
         # Spremanje javnog ključa u fajl
         self.public_key_ring.save_public_key_to_file(key_info['Public key'], f'public_{key_info["KeyID"]}.pem')
 
-        # Prikaz privatnih i javnih ključeva u odvojenim tabelama
-        # self.private_key_list.insert(tk.END, f"Private KeyID: {key_info['KeyID']}, Name: {key_info['Name']}, Email: {key_info['Email']}, "
-        #                                      f"EncryptedPrivateKey: {key_info['Encrypted private key']}, Timestamp: {key_info['Timestamp']}")
-        # self.public_key_list.insert(tk.END, f"Public KeyID: {key_info['KeyID']}, Name: {key_info['Name']}, Email: {key_info['Email']}, "
-        #                                    f"Public key: {key_info['Public key']}, Timestamp: {key_info['Timestamp']}")
         self.load_keys()
 
     def load_keys(self):
-        # Onemogući ponovno klikanje dugmeta
-        # if self.show_keys_clicked:
-        #     return
-
         # Očisti postojeći prikaz u tabelama
         self.private_key_list.delete(0, tk.END)
         self.public_key_list.delete(0, tk.END)
@@ -131,10 +128,6 @@ class KeyGenerationApp:
                 tk.END,
                 f"Public KeyID: {key['KeyID']}, Name: {key['Name']}, Email: {key['Email']}, Public key: {key['Public key']}, Timestamp: {key['Timestamp']}"
             )
-
-        # Onemogući ponovno klikanje dugmeta
-        # self.button_load_keys.config(state=tk.DISABLED)
-        # self.show_keys_clicked = True
 
 
 def send_message_screen():
@@ -243,16 +236,18 @@ def process_message(message, password, algorithm, private_key_name, public_key_n
     private_key = get_private_key(name=sender_name, key_id=private_key_id, password=password)
     public_key = get_public_key(key_id=public_key_id)
 
-    processor = MessageProcessor()
+    processor = MessageProcessor(private_key_ring, public_key_ring)
 
     # 1. Digitalno potpisivanje poruke
     signature = processor.sign_message(message.encode(), private_key)
 
     # 2. Spajanje poruke i potpisa (u skladu sa šemom)
-    combined_message = message.encode() + signature  # Dodavanje potpisa originalnoj poruci
+    combined_message = message.encode() + signature  # Dodavanje potpisa originalnoj poruci     TODO: fali key_id (id privatnog kljuca koji se koristi za hash) !!!
 
     # 3. Enkripcija kombinovane poruke pomoću sesijskog ključa
-    encrypted_message, encrypted_key = processor.encrypt_message(combined_message, public_key, algorithm)
+    encrypted_message, encrypted_session_key = processor.encrypt_message(combined_message, public_key, algorithm)
+
+    # TODO: encrypted_message + encrypted_session_key + key_id (id javnog kljuca kojim se sifruje session id)
 
     # 4. Kompresija i kodiranje enkriptovane poruke
     compressed_encoded_message = processor.compress_and_encode(encrypted_message)
@@ -270,7 +265,7 @@ def process_message(message, password, algorithm, private_key_name, public_key_n
     processor.save_message_to_file(
         file_path,
         compressed_encoded_message,
-        encrypted_key,
+        encrypted_session_key,
         signature,
         public_key_name
     )
@@ -302,6 +297,81 @@ def get_public_keys():
     return public_key_ring.keys
 
 
+def receive_message_screen():
+    receive_window = tk.Toplevel()
+    receive_window.title("Receive Message")
+
+    label_name = tk.Label(receive_window, text="Enter Your Name:")
+    label_name.grid(row=0, column=0, padx=10, pady=5)
+
+    entry_name = tk.Entry(receive_window)
+    entry_name.grid(row=0, column=1, padx=10, pady=5)
+
+    label_password = tk.Label(receive_window, text="Enter Password:")
+    label_password.grid(row=1, column=0, padx=10, pady=5)
+
+    entry_password = tk.Entry(receive_window, show="*")
+    entry_password.grid(row=1, column=1, padx=10, pady=5)
+
+    button_select_file = tk.Button(receive_window, text="Select Message File",
+                                   command=lambda: process_receiving_message(entry_name.get(), entry_password.get()))
+    button_select_file.grid(row=2, column=1, padx=10, pady=10)
+
+
+def process_receiving_message(name, password):
+    if not name:
+        messagebox.showerror("Input Error", "Please enter your name.")
+        return
+
+    # Nađi fajlove u direktorijumu sa korisničkim imenom
+    user_directory = f"./{name}"
+    if not os.path.exists(user_directory):
+        messagebox.showerror("Error", f"No messages found for user: {name}")
+        return
+
+    # Prikaži dijalog za izbor fajla iz korisničkog direktorijuma
+    file_path = filedialog.askopenfilename(initialdir=user_directory, filetypes=[("JSON files", "*.json")])
+    if not file_path:
+        return
+
+    try:
+        decrypted_message = message_processor.process_received_message(file_path, name, password)
+        messagebox.showinfo("Success", f"Message decrypted successfully: {decrypted_message.decode()}")
+    except Exception as e:
+        messagebox.showerror("Error", str(e))
+
+
+# Funkcija za odabir fajla na osnovu imena korisnika
+# def select_message_file(window, user_name):
+#     # Proveri da li je ime uneto
+#     if not user_name:
+#         messagebox.showerror("Input Error", "Please enter your name.")
+#         return
+#
+#     # Nađi fajlove u direktorijumu sa korisničkim imenom
+#     user_directory = f"./{user_name}"
+#     if not os.path.exists(user_directory):
+#         messagebox.showerror("Error", f"No messages found for user: {user_name}")
+#         return
+#
+#     # Prikaži dijalog za izbor fajla iz korisničkog direktorijuma
+#     file_path = filedialog.askopenfilename(initialdir=user_directory, filetypes=[("JSON files", "*.json")])
+#     if not file_path:
+#         return
+#
+#     # Nakon izbora, obradi poruku
+#     process_received_message(file_path, window)
+
+
+# Funkcija za cuvanje dekriptovane poruke
+def save_decrypted_message(message, window):
+    save_path = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text files", "*.txt")])
+    if save_path:
+        with open(save_path, 'w') as f:
+            f.write(message.decode())
+        messagebox.showinfo("Saved", f"Message saved to {save_path}")
+
+
 # Funkcija za početni ekran sa dva dugmeta
 def main_screen():
     root = tk.Tk()
@@ -312,6 +382,9 @@ def main_screen():
 
     message_button = tk.Button(root, text="Slanje Poruke", command=send_message_screen)
     message_button.grid(row=1, column=0, padx=20, pady=20)
+
+    receive_button = tk.Button(root, text="Prijem Poruke", command=receive_message_screen)
+    receive_button.grid(row=2, column=0, padx=20, pady=20)
 
     root.mainloop()
 

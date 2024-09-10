@@ -11,8 +11,11 @@ import zlib
 
 class MessageProcessor:
 
-    def __init__(self):
-        pass
+    def __init__(self, private_key_ring, public_key_ring):
+        self.private_key_ring = private_key_ring
+        self.public_key_ring = public_key_ring
+
+    # Slanje
 
     def encrypt_message(self, message, public_key, algorithm='AES128'):
         """Enkripcija poruke pomoću javnog ključa i simetričnog algoritma"""
@@ -71,3 +74,55 @@ class MessageProcessor:
 
         with open(file_path, 'w') as file:
             json.dump(data, file, indent=4)
+
+    # Prijem
+
+    def process_received_message(self, file_path, user_name, password):
+        """Obrada primljene poruke - dekripcija i verifikacija potpisa"""
+        with open(file_path, 'r') as file:
+            message_data = json.load(file)
+
+        encrypted_message = base64.b64decode(message_data["encrypted_message"])
+        encrypted_key = base64.b64decode(message_data["encrypted_key"])
+        signature = base64.b64decode(message_data["signature"])
+        public_key_info = message_data["public_key_info"]
+
+        # Nađi privatni ključ pomoću imena i lozinke
+        private_key = self.private_key_ring.load_private_key_from_file(user_name, password)
+
+        session_key = private_key.decrypt(
+            encrypted_key,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA1()),
+                algorithm=hashes.SHA1(),
+                label=None
+            )
+        )
+
+        algorithm = self.detect_algorithm(len(session_key))
+        cipher = Cipher(algorithm(session_key), modes.CFB(os.urandom(16)), backend=default_backend())
+        decryptor = cipher.decryptor()
+        decrypted_message = decryptor.update(encrypted_message) + decryptor.finalize()
+
+        public_key = self.public_key_ring.load_public_key_from_pem(public_key_info)
+        try:
+            public_key.verify(
+                signature,
+                decrypted_message,
+                padding.PSS(
+                    mgf=padding.MGF1(hashes.SHA1()),
+                    salt_length=padding.PSS.MAX_LENGTH
+                ),
+                hashes.SHA1()
+            )
+        except Exception as e:
+            raise Exception(f"Signature verification failed: {e}")
+
+        return decrypted_message
+
+    def detect_algorithm(self, key_length):
+        """Pomoćna funkcija za izbor algoritma na osnovu dužine ključa"""
+        if key_length == 16:
+            return algorithms.AES
+        elif key_length == 24:
+            return algorithms.TripleDES
