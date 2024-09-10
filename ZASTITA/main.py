@@ -1,5 +1,6 @@
 import ast
 import json
+import os
 import re
 import tkinter as tk
 from tkinter import messagebox
@@ -228,16 +229,18 @@ def process_message(message, password, algorithm, private_key_name, public_key_n
 
     # Pronađi podudaranja
     privateKeyIdMatch = re.search(keyIdPattern, private_key_name)
-    nameMatch = re.search(namePattern, private_key_name)
     publicKeyIdMatch = re.search(keyIdPattern, public_key_name)
+    senderNameMatch = re.search(namePattern, private_key_name)
+    receiverNameMatch = re.search(namePattern, public_key_name)
 
     # Izvuci rezultate
     private_key_id = privateKeyIdMatch.group(1) if privateKeyIdMatch else ''
-    name = nameMatch.group(1) if nameMatch else ''
     public_key_id = publicKeyIdMatch.group(1) if publicKeyIdMatch else ''
+    sender_name = senderNameMatch.group(1) if senderNameMatch else ''
+    receiver_name = receiverNameMatch.group(1) if receiverNameMatch else ''
 
     # Simulacija preuzimanja ključeva
-    private_key = get_private_key(name=name, key_id=private_key_id, password=password)
+    private_key = get_private_key(name=sender_name, key_id=private_key_id, password=password)
     public_key = get_public_key(key_id=public_key_id)
 
     processor = MessageProcessor()
@@ -249,15 +252,23 @@ def process_message(message, password, algorithm, private_key_name, public_key_n
     combined_message = message.encode() + signature  # Dodavanje potpisa originalnoj poruci
 
     # 3. Enkripcija kombinovane poruke pomoću sesijskog ključa
-    encrypted_message, encrypted_key = processor.encrypt_message(combined_message.decode('utf-8'), public_key, algorithm)
+    encrypted_message, encrypted_key = processor.encrypt_message(combined_message, public_key, algorithm)
 
     # 4. Kompresija i kodiranje enkriptovane poruke
     compressed_encoded_message = processor.compress_and_encode(encrypted_message)
 
     # 5. Čuvanje poruke u fajl (sa enkriptovanim ključem i potpisom)
-    filename = "sent_message.json"
+    message_id = datetime.datetime.now().timestamp()
+    directory = receiver_name
+
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    filename = f"{sender_name}_{message_id}.json"
+    file_path = os.path.join(directory, filename)
+
     processor.save_message_to_file(
-        filename,
+        file_path,
         compressed_encoded_message,
         encrypted_key,
         signature,

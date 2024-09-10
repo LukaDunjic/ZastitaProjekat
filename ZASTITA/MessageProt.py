@@ -28,7 +28,7 @@ class MessageProcessor:
 
         # Šifrovanje poruke simetričnim ključem
         encryptor = cipher.encryptor()
-        encrypted_message = encryptor.update(message.encode()) + encryptor.finalize()
+        encrypted_message = encryptor.update(message) + encryptor.finalize()
 
         # Šifrovanje simetričnog ključa pomoću javnog ključa
         encrypted_session_key = public_key.encrypt(
@@ -60,7 +60,7 @@ class MessageProcessor:
         encoded_message = base64.b64encode(compressed_message)
         return encoded_message
 
-    def save_message_to_file(self, filename, encrypted_message, encrypted_key, signature, public_key_info):
+    def save_message_to_file(self, file_path, encrypted_message, encrypted_key, signature, public_key_info):
         """Čuvanje poruke u fajl sa svim potrebnim informacijama"""
         data = {
             "encrypted_message": base64.b64encode(encrypted_message).decode('utf-8'),
@@ -69,5 +69,5 @@ class MessageProcessor:
             "public_key_info": public_key_info
         }
 
-        with open(filename, 'w') as file:
+        with open(file_path, 'w') as file:
             json.dump(data, file, indent=4)
