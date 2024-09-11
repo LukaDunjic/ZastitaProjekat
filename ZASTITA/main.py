@@ -113,7 +113,6 @@ class KeyGenerationApp:
         self.public_key_list.delete(0, tk.END)
 
         # Učitaj privatne ključeve iz fajlova i dodaj ih u tabelu
-        print(self.entry_name.get())
         self.private_key_ring.load_private_keys_from_files(self.entry_name.get(), self.entry_password.get())
         for key in self.private_key_ring.keys:
             self.private_key_list.insert(
@@ -242,12 +241,12 @@ def process_message(message, password, algorithm, private_key_name, public_key_n
     signature = processor.sign_message(message.encode(), private_key)
 
     # 2. Spajanje poruke i potpisa (u skladu sa šemom)
-    combined_message = message.encode() + signature  # Dodavanje potpisa originalnoj poruci     TODO: fali key_id (id privatnog kljuca koji se koristi za hash) !!!
+    combined_message = message.encode()# + signature        # fali key_id (id privatnog kljuca koji se koristi za hash) !!!
 
     # 3. Enkripcija kombinovane poruke pomoću sesijskog ključa
     encrypted_message, encrypted_session_key = processor.encrypt_message(combined_message, public_key, algorithm)
 
-    # TODO: encrypted_message + encrypted_session_key + key_id (id javnog kljuca kojim se sifruje session id)
+    # encrypted_message + encrypted_session_key + key_id (id javnog kljuca kojim se sifruje session id)
 
     # 4. Kompresija i kodiranje enkriptovane poruke
     compressed_encoded_message = processor.compress_and_encode(encrypted_message)
@@ -267,7 +266,9 @@ def process_message(message, password, algorithm, private_key_name, public_key_n
         compressed_encoded_message,
         encrypted_session_key,
         signature,
-        public_key_name
+        private_key_id,
+        public_key_id,
+        algorithm
     )
 
     # Informacija korisniku
@@ -339,28 +340,6 @@ def process_receiving_message(name, password):
         messagebox.showinfo("Success", f"Message decrypted successfully: {decrypted_message.decode()}")
     except Exception as e:
         messagebox.showerror("Error", str(e))
-
-
-# Funkcija za odabir fajla na osnovu imena korisnika
-# def select_message_file(window, user_name):
-#     # Proveri da li je ime uneto
-#     if not user_name:
-#         messagebox.showerror("Input Error", "Please enter your name.")
-#         return
-#
-#     # Nađi fajlove u direktorijumu sa korisničkim imenom
-#     user_directory = f"./{user_name}"
-#     if not os.path.exists(user_directory):
-#         messagebox.showerror("Error", f"No messages found for user: {user_name}")
-#         return
-#
-#     # Prikaži dijalog za izbor fajla iz korisničkog direktorijuma
-#     file_path = filedialog.askopenfilename(initialdir=user_directory, filetypes=[("JSON files", "*.json")])
-#     if not file_path:
-#         return
-#
-#     # Nakon izbora, obradi poruku
-#     process_received_message(file_path, window)
 
 
 # Funkcija za cuvanje dekriptovane poruke
