@@ -127,41 +127,47 @@ class KeyGenerationApp:
 
 
 # Sifrovanje
-
 def send_message_screen():
     message_window = tk.Toplevel()
     message_window.title("Send Message")
 
-    label_message = tk.Label(message_window, text="Enter Message:")
-    label_message.grid(row=0, column=0, padx=10, pady=5)
+    # Korišćenje LabelFrame za lepši izgled
+    frame_message = tk.LabelFrame(message_window, text="Enter Message", padx=10, pady=10)
+    frame_message.grid(row=0, column=0, padx=20, pady=20)
 
-    entry_message = tk.Text(message_window, height=10, width=50)
-    entry_message.grid(row=1, column=0, padx=10, pady=5)
+    # Unos poruke sa skrol-barom
+    entry_message = tk.Text(frame_message, height=10, width=50, wrap="word")
+    entry_message.pack()
 
-    label_algorithm = tk.Label(message_window, text="Encryption Algorithm:")
-    label_algorithm.grid(row=2, column=0, padx=10, pady=5)
+    # Korišćenje LabelFrame za enkripciju
+    frame_options = tk.LabelFrame(message_window, text="Message Options", padx=10, pady=10)
+    frame_options.grid(row=1, column=0, padx=20, pady=10)
 
-    algorithm_choice = tk.StringVar()
-    algorithm_menu = tk.OptionMenu(message_window, algorithm_choice, "AES128", "TripleDES")
-    algorithm_menu.grid(row=3, column=0, padx=10, pady=5)
+    # Algoritam enkripcije
+    label_algorithm = tk.Label(frame_options, text="Encryption Algorithm:")
+    label_algorithm.grid(row=0, column=0, padx=10, pady=5)
 
-    message_window = tk.Tk()
-    message_window.title("Key Selection")
-
+    algorithm_choice = tk.StringVar(value="AES128")  # Default value
+    algorithm_menu = tk.OptionMenu(frame_options, algorithm_choice, "AES128", "TripleDES")
+    algorithm_menu.grid(row=0, column=1, padx=10, pady=5)
 
     # Polje za unos name-a
-    label_name = tk.Label(message_window, text="Name:")
-    label_name.grid(row=0, column=0, padx=10, pady=5)
+    label_name = tk.Label(frame_options, text="Name:")
+    label_name.grid(row=1, column=0, padx=10, pady=5)
 
-    entry_name = tk.Entry(message_window)
-    entry_name.grid(row=0, column=1, padx=10, pady=5)
+    entry_name = tk.Entry(frame_options)
+    entry_name.grid(row=1, column=1, padx=10, pady=5)
 
     # Polje za unos password-a
-    label_password = tk.Label(message_window, text="Password:")
-    label_password.grid(row=1, column=0, padx=10, pady=5)
+    label_password = tk.Label(frame_options, text="Password:")
+    label_password.grid(row=2, column=0, padx=10, pady=5)
 
-    entry_password = tk.Entry(message_window, show="*")
-    entry_password.grid(row=1, column=1, padx=10, pady=5)
+    entry_password = tk.Entry(frame_options, show="*")
+    entry_password.grid(row=2, column=1, padx=10, pady=5)
+
+    # Internal variables to store selected keys
+    selected_private_key = None
+    selected_public_key = None
 
     def load_keys():
         name = entry_name.get()
@@ -171,88 +177,117 @@ def send_message_screen():
         private_keys = get_private_keys(name, password)
         public_keys = get_public_keys()
 
-        # Ažuriranje padajućih listi stvarnim ključevima
+        # Ažuriranje padajućih listi stvarnim ključevima (samo KeyID i Email prikaz)
         private_key_menu["menu"].delete(0, "end")
         for key in private_keys:
-            private_key_menu["menu"].add_command(label=key, command=lambda value=key: private_key_choice.set(value))
+            display_text = f"{key['KeyID']} - {key['Email']}"
+            private_key_menu["menu"].add_command(
+                label=display_text,
+                command=lambda key_data=key: select_private_key(key_data)
+            )
 
         public_key_menu["menu"].delete(0, "end")
         for key in public_keys:
-            public_key_menu["menu"].add_command(label=key, command=lambda value=key: public_key_choice.set(value))
+            display_text = f"{key['KeyID']} - {key['Email']}"
+            public_key_menu["menu"].add_command(
+                label=display_text,
+                command=lambda key_data=key: select_public_key(key_data)
+            )
 
+    def select_private_key(key_data):
+        nonlocal selected_private_key
+        selected_private_key = key_data  # Save the entire key data internally
+        private_key_choice.set("Private Key Selected")  # Display neutral message
+
+    def select_public_key(key_data):
+        nonlocal selected_public_key
+        selected_public_key = key_data  # Save the entire key data internally
+        public_key_choice.set("Public Key Selected")  # Display neutral message
 
     # Dugme za učitavanje ključeva
-    load_button = tk.Button(message_window, text="Load Keys", command=load_keys)
-    load_button.grid(row=2, column=0, columnspan=2, padx=10, pady=10)
+    load_button = tk.Button(frame_options, text="Load Keys", command=load_keys)
+    load_button.grid(row=3, column=0, columnspan=2, padx=10, pady=10)
 
-    # Dropdown za privatne ključeve
-    label_private_key = tk.Label(message_window, text="Select Private Key:")
+    # Dropdown za privatne ključeve (bez prikaza samog ključa)
+    label_private_key = tk.Label(frame_options, text="Select Private Key:")
     label_private_key.grid(row=4, column=0, padx=10, pady=5)
 
     private_key_choice = tk.StringVar()
-    private_key_menu = tk.OptionMenu(message_window, private_key_choice, "")
-    private_key_menu.grid(row=5, column=0, padx=10, pady=5)
+    private_key_menu = tk.OptionMenu(frame_options, private_key_choice, "")
+    private_key_menu.grid(row=4, column=1, padx=10, pady=5)
 
-    # Dropdown za javne ključeve
-    label_public_key = tk.Label(message_window, text="Select Public Key:")
-    label_public_key.grid(row=6, column=0, padx=10, pady=5)
+    # Dropdown za javne ključeve (bez prikaza samog ključa)
+    label_public_key = tk.Label(frame_options, text="Select Public Key:")
+    label_public_key.grid(row=5, column=0, padx=10, pady=5)
 
     public_key_choice = tk.StringVar()
-    public_key_menu = tk.OptionMenu(message_window, public_key_choice, "")
-    public_key_menu.grid(row=7, column=0, padx=10, pady=5)
+    public_key_menu = tk.OptionMenu(frame_options, public_key_choice, "")
+    public_key_menu.grid(row=5, column=1, padx=10, pady=5)
 
     # Checkbutton za enkripciju
     encryption_var = tk.BooleanVar()
-    check_encryption = tk.Checkbutton(message_window, text="Encryption", variable=encryption_var)
-    check_encryption.grid(row=9, column=0, padx=10, pady=5)
-
-    # Checkbutton za potpisivanje
-    signing_var = tk.BooleanVar()
-    check_signing = tk.Checkbutton(message_window, text="Signing", variable=signing_var)
-    check_signing.grid(row=9, column=1, padx=10, pady=5)
+    check_encryption = tk.Checkbutton(frame_options, text="Encryption", variable=encryption_var)
+    check_encryption.grid(row=6, column=0, padx=10, pady=5)
 
     # Checkbutton za kompresiju
     compression_var = tk.BooleanVar()
-    check_compression = tk.Checkbutton(message_window, text="Compression", variable=compression_var)
-    check_compression.grid(row=10, column=0, padx=10, pady=5)
+    check_compression = tk.Checkbutton(frame_options, text="Compression", variable=compression_var)
+    check_compression.grid(row=6, column=1, padx=10, pady=5)
 
-    # Checkbutton za Radix64
+    # Checkbutton za enkripciju
+    signing_var = tk.BooleanVar()
+    check_signing = tk.Checkbutton(frame_options, text="Sign", variable=signing_var)
+    check_signing.grid(row=7, column=0, padx=10, pady=5)
+
+    # Checkbutton za kompresiju
     radix64_var = tk.BooleanVar()
-    check_radix64 = tk.Checkbutton(message_window, text="Radix64", variable=radix64_var)
-    check_radix64.grid(row=10, column=1, padx=10, pady=5)
+    check_radix64 = tk.Checkbutton(frame_options, text="Radix-64", variable=radix64_var)
+    check_radix64.grid(row=7, column=1, padx=10, pady=5)
 
+    # Dugme za slanje poruke
     send_button = tk.Button(
-        message_window, text="Send Message",
+        frame_options, text="Send Message",
         command=lambda: process_message(
             entry_message.get("1.0", tk.END),
             entry_password.get(),
             algorithm_choice.get(),
-            private_key_choice.get(),
-            public_key_choice.get(),
+            selected_private_key,
+            selected_public_key,
             encryption_var.get(),
             signing_var.get(),
             compression_var.get(),
             radix64_var.get()
         )
     )
-    send_button.grid(row=8, column=0, padx=10, pady=5)
+    send_button.grid(row=8, column=0, columnspan=2, padx=10, pady=10)
+
+# Implement the rest of the message processing logic accordingly
 
 
-def process_message(message, password, algorithm, private_key_name, public_key_name, encryption_bool, signing_bool, compression_bool, radix64_bool):
-    keyIdPattern = "'KeyID':\\s*'([^']+)'"
-    namePattern = "'Name':\\s*'([^']+)'"
+def process_message(message, password, algorithm, private_key_data, public_key_data, encryption_bool, signing_bool, compression_bool, radix64_bool):
+    # keyIdPattern = "'KeyID':\\s*'([^']+)'"
+    # namePattern = "'Name':\\s*'([^']+)'"
+    #
+    # # Pronađi podudaranja
+    # privateKeyIdMatch = re.search(keyIdPattern, private_key_name)
+    # publicKeyIdMatch = re.search(keyIdPattern, public_key_name)
+    # senderNameMatch = re.search(namePattern, private_key_name)
+    # receiverNameMatch = re.search(namePattern, public_key_name)
+    #
+    # # Izvuci rezultate
+    # private_key_id = privateKeyIdMatch.group(1) if privateKeyIdMatch else ''
+    # public_key_id = publicKeyIdMatch.group(1) if publicKeyIdMatch else ''
+    # sender_name = senderNameMatch.group(1) if senderNameMatch else ''
+    # receiver_name = receiverNameMatch.group(1) if receiverNameMatch else ''
 
-    # Pronađi podudaranja
-    privateKeyIdMatch = re.search(keyIdPattern, private_key_name)
-    publicKeyIdMatch = re.search(keyIdPattern, public_key_name)
-    senderNameMatch = re.search(namePattern, private_key_name)
-    receiverNameMatch = re.search(namePattern, public_key_name)
+    private_key_id = private_key_data['KeyID']
+    public_key_id = public_key_data['KeyID']
+    sender_name = private_key_data['Name']
+    receiver_name = public_key_data['Name']
 
-    # Izvuci rezultate
-    private_key_id = privateKeyIdMatch.group(1) if privateKeyIdMatch else ''
-    public_key_id = publicKeyIdMatch.group(1) if publicKeyIdMatch else ''
-    sender_name = senderNameMatch.group(1) if senderNameMatch else ''
-    receiver_name = receiverNameMatch.group(1) if receiverNameMatch else ''
+    # Simulacija preuzimanja ključeva
+    private_key = get_private_key(name=sender_name, key_id=private_key_id, password=password)
+    public_key = get_public_key(key_id=public_key_id)
 
     # Simulacija preuzimanja ključeva
     private_key = get_private_key(name=sender_name, key_id=private_key_id, password=password)
