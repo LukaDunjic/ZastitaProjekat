@@ -63,15 +63,31 @@ class MessageProcessor:
         compressed_message = zlib.compress(message)
         return compressed_message
 
-    def save_message_to_file(self, file_path, encrypted_message, encrypted_session_key, signature, sender_key_id, receiver_key_id, algorithm):
+    def save_message_to_file(self, file_path, encrypted_message, encrypted_session_key, signature, sender_key_id,
+                             receiver_key_id, algorithm, encryption_bool, signing_bool, compression_bool, radix64_bool):
         """Čuvanje poruke u fajl sa svim potrebnim informacijama"""
+
+        # Ensure encrypted_message and encrypted_session_key are bytes
+        if isinstance(encrypted_message, str):
+            encrypted_message = encrypted_message.encode('utf-8')
+        if isinstance(encrypted_session_key, str):
+            encrypted_session_key = encrypted_session_key.encode('utf-8')
+
+        # Ensure signature is bytes
+        if isinstance(signature, str):
+            signature = signature.encode('utf-8')
+
         data = {
             "encrypted_message": base64.b64encode(encrypted_message).decode('utf-8'),
             "encrypted_session_key": base64.b64encode(encrypted_session_key).decode('utf-8'),
             "signature": base64.b64encode(signature).decode('utf-8'),
             "sender_key_id": sender_key_id,
             "receiver_key_id": receiver_key_id,
-            "algorithm": algorithm
+            "algorithm": algorithm,
+            "encryption_bool": encryption_bool,
+            "signing_bool": signing_bool,
+            "compression_bool": compression_bool,
+            "radix64_bool": radix64_bool
         }
 
         with open(file_path, 'w') as file:
@@ -94,8 +110,14 @@ class MessageProcessor:
         sender_key_id = message_data["sender_key_id"]
         receiver_key_id = message_data["receiver_key_id"]
         algorithm = message_data["algorithm"]
+        encryption_bool = message_data["encryption_bool"]
+        signing_bool = message_data["signing_bool"]
+        compression_bool = message_data["compression_bool"]
+        radix64_bool = message_data["radix64_bool"]
 
-        encrypted_message = self.decompress_and_decode(compressed_encoded_message)
+        encrypted_message = compressed_encoded_message
+        if compression_bool == 1:
+            encrypted_message = self.decompress_and_decode(compressed_encoded_message)
 
         # Nađi privatni ključ pomoću imena i lozinke
         try:
@@ -103,40 +125,43 @@ class MessageProcessor:
         except Exception as e:
             raise Exception("Nemate dozvolu da citate ovu poruku!")
 
-        session_key = private_key.decrypt(
-            encrypted_session_key,
-            padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA1()),
-                algorithm=hashes.SHA1(),
-                label=None
+        decrypted_message = encrypted_message
+        if encryption_bool == 1:
+            session_key = private_key.decrypt(
+                encrypted_session_key,
+                padding.OAEP(
+                    mgf=padding.MGF1(algorithm=hashes.SHA1()),
+                    algorithm=hashes.SHA1(),
+                    label=None
+                )
             )
-        )
 
-        bytes_num = 16
-        if algorithm == "TripleDES":
-            bytes_num = 8
+            bytes_num = 16
+            if algorithm == "TripleDES":
+                bytes_num = 8
 
-        algorithm = self.detect_algorithm(algorithm)
-        cipher = Cipher(algorithm(session_key), modes.CFB(session_key[:bytes_num]), backend=default_backend())
-        decryptor = cipher.decryptor()
-        decrypted_message = decryptor.update(encrypted_message) + decryptor.finalize()     # dodao encode()
+            algorithm = self.detect_algorithm(algorithm)
+            cipher = Cipher(algorithm(session_key), modes.CFB(session_key[:bytes_num]), backend=default_backend())
+            decryptor = cipher.decryptor()
+            decrypted_message = decryptor.update(encrypted_message) + decryptor.finalize()     # dodao encode()
 
         public_key = self.public_key_ring.load_public_key_from_pem(f"public_{sender_key_id}.pem")   # ovim kljucem dekriptujemo signature
 
         print(decrypted_message.decode('utf-8').strip())
 
-        try:
-            public_key.verify(
-                signature,
-                decrypted_message,
-                padding.PSS(
-                    mgf=padding.MGF1(hashes.SHA1()),
-                    salt_length=padding.PSS.MAX_LENGTH
-                ),
-                hashes.SHA1()
-            )
-        except Exception as e:
-            raise Exception(f"Signature verification failed: {e}")
+        if signing_bool == 1:
+            try:
+                public_key.verify(
+                    signature,
+                    decrypted_message,
+                    padding.PSS(
+                        mgf=padding.MGF1(hashes.SHA1()),
+                        salt_length=padding.PSS.MAX_LENGTH
+                    ),
+                    hashes.SHA1()
+                )
+            except Exception as e:
+                raise Exception(f"Signature verification failed: {e}")
 
         self.save_decrypted_message_to_file(message=decrypted_message.decode('utf-8').strip(), name=name)
 

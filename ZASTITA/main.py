@@ -201,6 +201,26 @@ def send_message_screen():
     public_key_menu = tk.OptionMenu(message_window, public_key_choice, "")
     public_key_menu.grid(row=7, column=0, padx=10, pady=5)
 
+    # Checkbutton za enkripciju
+    encryption_var = tk.BooleanVar()
+    check_encryption = tk.Checkbutton(message_window, text="Encryption", variable=encryption_var)
+    check_encryption.grid(row=9, column=0, padx=10, pady=5)
+
+    # Checkbutton za potpisivanje
+    signing_var = tk.BooleanVar()
+    check_signing = tk.Checkbutton(message_window, text="Signing", variable=signing_var)
+    check_signing.grid(row=9, column=1, padx=10, pady=5)
+
+    # Checkbutton za kompresiju
+    compression_var = tk.BooleanVar()
+    check_compression = tk.Checkbutton(message_window, text="Compression", variable=compression_var)
+    check_compression.grid(row=10, column=0, padx=10, pady=5)
+
+    # Checkbutton za Radix64
+    radix64_var = tk.BooleanVar()
+    check_radix64 = tk.Checkbutton(message_window, text="Radix64", variable=radix64_var)
+    check_radix64.grid(row=10, column=1, padx=10, pady=5)
+
     send_button = tk.Button(
         message_window, text="Send Message",
         command=lambda: process_message(
@@ -208,13 +228,17 @@ def send_message_screen():
             entry_password.get(),
             algorithm_choice.get(),
             private_key_choice.get(),
-            public_key_choice.get()
+            public_key_choice.get(),
+            encryption_var.get(),
+            signing_var.get(),
+            compression_var.get(),
+            radix64_var.get()
         )
     )
     send_button.grid(row=8, column=0, padx=10, pady=5)
 
 
-def process_message(message, password, algorithm, private_key_name, public_key_name):
+def process_message(message, password, algorithm, private_key_name, public_key_name, encryption_bool, signing_bool, compression_bool, radix64_bool):
     keyIdPattern = "'KeyID':\\s*'([^']+)'"
     namePattern = "'Name':\\s*'([^']+)'"
 
@@ -237,18 +261,25 @@ def process_message(message, password, algorithm, private_key_name, public_key_n
     processor = MessageProcessor(private_key_ring, public_key_ring)
 
     # 1. Digitalno potpisivanje poruke
-    signature = processor.sign_message(message.encode(), private_key)
+    signature = ""
+    if signing_bool == 1:
+        signature = processor.sign_message(message.encode(), private_key)
 
     # 2. Spajanje poruke i potpisa (u skladu sa šemom)
     combined_message = message.encode()# + signature        # fali key_id (id privatnog kljuca koji se koristi za hash) !!!
 
     # 3. Enkripcija kombinovane poruke pomoću sesijskog ključa
-    encrypted_message, encrypted_session_key = processor.encrypt_message(combined_message, public_key, algorithm)
+    encrypted_message = combined_message
+    encrypted_session_key = ""
+    if encryption_bool == 1:
+        encrypted_message, encrypted_session_key = processor.encrypt_message(combined_message, public_key, algorithm)
 
     # encrypted_message + encrypted_session_key + key_id (id javnog kljuca kojim se sifruje session id)
 
     # 4. Kompresija i kodiranje enkriptovane poruke
-    compressed_encoded_message = processor.compress_and_encode(encrypted_message)
+    compressed_encoded_message = encrypted_message
+    if compression_bool == 1:
+        compressed_encoded_message = processor.compress_and_encode(encrypted_message)
 
     # 5. Čuvanje poruke u fajl (sa enkriptovanim ključem i potpisom)
     message_id = datetime.datetime.now().timestamp()
@@ -267,7 +298,11 @@ def process_message(message, password, algorithm, private_key_name, public_key_n
         signature,
         private_key_id,
         public_key_id,
-        algorithm
+        algorithm,
+        encryption_bool,
+        signing_bool,
+        compression_bool,
+        radix64_bool
     )
 
     # Informacija korisniku
