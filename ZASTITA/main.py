@@ -1,17 +1,13 @@
-import ast
 import base64
 import json
 import os
 import re
 import tkinter as tk
-from tkinter import messagebox, filedialog
-
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import rsa, padding
 import datetime
-
-from cryptography.hazmat.primitives.ciphers import Cipher, modes, algorithms
+from tkinter import filedialog, messagebox
+from cryptography.hazmat.primitives import serialization
 
 from MessageProt import MessageProcessor
 from PrivateKeyRings import PrivateKeyRing
@@ -21,6 +17,7 @@ from PublicKeyRings import PublicKeyRing
 private_key_ring = PrivateKeyRing()
 public_key_ring = PublicKeyRing()
 message_processor = MessageProcessor(private_key_ring, public_key_ring)
+
 
 class KeyGenerationApp:
     def __init__(self, root):
@@ -128,6 +125,8 @@ class KeyGenerationApp:
                 f"Public KeyID: {key['KeyID']}, Name: {key['Name']}, Email: {key['Email']}, Public key: {key['Public key']}, Timestamp: {key['Timestamp']}"
             )
 
+
+# Sifrovanje
 
 def send_message_screen():
     message_window = tk.Toplevel()
@@ -275,7 +274,6 @@ def process_message(message, password, algorithm, private_key_name, public_key_n
     messagebox.showinfo("Message Sent", f"Message successfully sent and saved to {filename}")
 
 
-
 # dohvata 1 kljuc na osnovu name-a i key_id-a
 def get_private_key(name, key_id, password):
     private_key = private_key_ring.load_private_key_from_file(filename=f"{name}_{key_id}_private.pem", password=password)
@@ -297,6 +295,8 @@ def get_public_keys():
     public_key_ring.load_public_keys_from_files()
     return public_key_ring.keys
 
+
+# Desifrovanje
 
 def receive_message_screen():
     receive_window = tk.Toplevel()
@@ -351,6 +351,190 @@ def save_decrypted_message(message, window):
         messagebox.showinfo("Saved", f"Message saved to {save_path}")
 
 
+# Importovanje samo javnog kljuca
+def import_public_key_screen():
+    """Otvara prozor za unos imena, emaila i biranje javnog ključa"""
+    import_window = tk.Toplevel()
+    import_window.title("Uvezi javni ključ")
+
+    # Labela i unos za ime
+    label_name = tk.Label(import_window, text="Name:")
+    label_name.grid(row=0, column=0, padx=10, pady=5)
+
+    entry_name = tk.Entry(import_window)
+    entry_name.grid(row=0, column=1, padx=10, pady=5)
+
+    # Labela i unos za email
+    label_email = tk.Label(import_window, text="Email:")
+    label_email.grid(row=1, column=0, padx=10, pady=5)
+
+    entry_email = tk.Entry(import_window)
+    entry_email.grid(row=1, column=1, padx=10, pady=5)
+
+    # Dugme za biranje fajla
+    def choose_file():
+        file_path = filedialog.askopenfilename(filetypes=[("PEM files", "*.pem")])
+        if file_path:
+            try:
+                # Obrada ključa
+                process_imported_public_key(file_path, entry_name.get(), entry_email.get())
+                messagebox.showinfo("Success", "Public key successfully imported!")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to import public key: {str(e)}")
+
+    button_choose_file = tk.Button(import_window, text="Izaberi fajl", command=choose_file)
+    button_choose_file.grid(row=2, column=0, columnspan=2, padx=10, pady=10)
+
+
+def process_imported_public_key(file_path, name, email):
+    """Funkcija za obradu uvezenog javnog ključa"""
+    # Učitaj javni ključ iz fajla
+    with open(file_path, 'rb') as key_file:
+        public_key = serialization.load_pem_public_key(
+            key_file.read(),
+            backend=default_backend()
+        )
+
+    # Generiši KeyID na osnovu javnog ključa
+    public_pem = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+
+    # Hash za KeyID
+    hasher = hashes.Hash(hashes.SHA256(), backend=default_backend())
+    hasher.update(public_pem)
+    hashed_key = hasher.finalize()
+    key_id = hashed_key[-8:].hex()
+
+    # Sačuvaj javni ključ u fajl
+    public_key_file_name = f'public_{key_id}.pem'
+    with open(public_key_file_name, 'wb') as key_file:
+        key_file.write(public_pem)
+
+    timestamp = datetime.datetime.now().timestamp()
+    save_in_json(timestamp, key_id, name, email, public_key, "")
+
+    # Dodaj ključ u PublicKeyRing
+    public_key_ring.add_key(key_id, public_key, name, email, timestamp)
+
+
+# Importovanje para kljuceva
+
+def import_key_pair_screen():
+    """Otvara prozor za unos podataka i uvoz para ključeva"""
+    import_window = tk.Toplevel()
+    import_window.title("Uvezi par ključeva")
+
+    # Unos za name
+    label_name = tk.Label(import_window, text="Name:")
+    label_name.grid(row=0, column=0, padx=10, pady=5)
+
+    entry_name = tk.Entry(import_window)
+    entry_name.grid(row=0, column=1, padx=10, pady=5)
+
+    # Unos za email
+    label_email = tk.Label(import_window, text="Email:")
+    label_email.grid(row=1, column=0, padx=10, pady=5)
+
+    entry_email = tk.Entry(import_window)
+    entry_email.grid(row=1, column=1, padx=10, pady=5)
+
+    # Unos za password
+    label_password = tk.Label(import_window, text="Password:")
+    label_password.grid(row=2, column=0, padx=10, pady=5)
+
+    entry_password = tk.Entry(import_window, show="*")
+    entry_password.grid(row=2, column=1, padx=10, pady=5)
+
+    # Dugme za uvoz ključeva
+    def choose_keys():
+        # Izaberi privatni ključ
+        private_key_path = filedialog.askopenfilename(filetypes=[("PEM files", "*.pem")])
+        if not private_key_path:
+            messagebox.showerror("Error", "Private key not selected")
+            return
+
+        # Izaberi javni ključ
+        public_key_path = filedialog.askopenfilename(filetypes=[("PEM files", "*.pem")])
+        if not public_key_path:
+            messagebox.showerror("Error", "Public key not selected")
+            return
+
+        # Obradi uvoženi par ključeva
+        try:
+            process_imported_key_pair(private_key_path, public_key_path, entry_name.get(), entry_email.get(),
+                                      entry_password.get())
+            messagebox.showinfo("Success", "Key pair successfully imported!")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to import key pair: {str(e)}")
+
+    button_import_pair = tk.Button(import_window, text="Uvezi par", command=choose_keys)
+    button_import_pair.grid(row=3, column=0, columnspan=2, padx=10, pady=10)
+
+
+def process_imported_key_pair(private_key_path, public_key_path, name, email, password):
+    """Funkcija za obradu i uvoz privatnog i javnog ključa"""
+    # Učitaj i dekriptuj privatni ključ pomoću lozinke
+    with open(private_key_path, 'rb') as private_key_file:
+        private_key = serialization.load_pem_private_key(
+            private_key_file.read(),
+            password=password.encode(),
+            backend=default_backend()
+        )
+
+    # Učitaj javni ključ
+    with open(public_key_path, 'rb') as public_key_file:
+        public_key = serialization.load_pem_public_key(
+            public_key_file.read(),
+            backend=default_backend()
+        )
+
+    # Generiši KeyID na osnovu javnog ključa
+    public_pem = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+
+    # Hash za KeyID
+    hasher = hashes.Hash(hashes.SHA256(), backend=default_backend())
+    hasher.update(public_pem)
+    hashed_key = hasher.finalize()
+    key_id = hashed_key[-8:].hex()
+
+    # Sačuvaj privatni ključ
+    private_key_ring.save_private_key_to_file(private_key, f'{name}_{key_id}_private.pem', password)
+
+    # Sačuvaj javni ključ
+    public_key_ring.save_public_key_to_file(public_key, f'public_{key_id}.pem')
+
+    # Dodaj ključeve u prstenove
+    timestamp = datetime.datetime.now().timestamp()
+    private_key_ring.add_key(key_id, public_key, "Encrypted private key", name, email, timestamp)
+    public_key_ring.add_key(key_id, public_key, name, email, timestamp)
+
+    save_in_json(timestamp, key_id, name, email, public_key, "")
+
+
+def save_in_json(timestamp, key_id, name, email, public_key, encrypted_private_key):
+    key_data = {
+        "Timestamp": timestamp,
+        "KeyID": key_id,
+        "Name": name,
+        "Email": email,
+        "PublicKey": base64.b64encode(public_key.public_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PublicFormat.SubjectPublicKeyInfo
+                )).decode('utf-8'),
+        "EncryptedPrivateKey": encrypted_private_key
+    }
+
+    # Sačuvaj sve podatke u jednom JSON fajlu
+    json_filename = f"{name}_key_{key_id}_info.json"
+    with open(json_filename, 'w') as json_file:
+        json.dump(key_data, json_file, indent=4)
+
+
 # Funkcija za početni ekran sa dva dugmeta
 def main_screen():
     root = tk.Tk()
@@ -364,6 +548,13 @@ def main_screen():
 
     receive_button = tk.Button(root, text="Prijem Poruke", command=receive_message_screen)
     receive_button.grid(row=2, column=0, padx=20, pady=20)
+
+    import_public_key_button = tk.Button(root, text="Uvezi javni ključ", command=import_public_key_screen)
+    import_public_key_button.grid(row=3, column=0, padx=20, pady=20)
+
+    # Dugme za uvoz para ključeva (privatni i javni)
+    import_key_pair_button = tk.Button(root, text="Uvezi par ključeva", command=import_key_pair_screen)
+    import_key_pair_button.grid(row=4, column=0, padx=20, pady=20)
 
     root.mainloop()
 

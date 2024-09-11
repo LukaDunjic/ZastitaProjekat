@@ -98,7 +98,10 @@ class MessageProcessor:
         encrypted_message = self.decompress_and_decode(compressed_encoded_message)
 
         # Nađi privatni ključ pomoću imena i lozinke
-        private_key = self.private_key_ring.load_private_key_from_file(f"{name}_{receiver_key_id}_private.pem", password)      # ovim kljucem doijamo session key
+        try:
+            private_key = self.private_key_ring.load_private_key_from_file(f"{name}_{receiver_key_id}_private.pem", password)      # ovim kljucem doijamo session key
+        except Exception as e:
+            raise Exception("Nemate dozvolu da citate ovu poruku!")
 
         session_key = private_key.decrypt(
             encrypted_session_key,
